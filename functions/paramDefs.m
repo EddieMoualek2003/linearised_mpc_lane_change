@@ -1,6 +1,7 @@
 function params = paramDefs(o)
     arguments
         o.vxSim (1,1) double {mustBePositive} = 20   % m/s, plant's actual speed
+        o.vxDesign (1,1) double {mustBePositive} = 15
     end
 % Vehicle inertia and geometry
     params.m   = 1500;       % kg
@@ -12,7 +13,7 @@ function params = paramDefs(o)
     params.Cr  = 85000;      % N/rad
     params.mu  = 0.9;        % friction coefficient
 % Operating conditions
-    params.vxDesign = 15;                               % m/s, LTI controller's operating point
+    params.vxDesign = o.vxDesign;                               % m/s, LTI controller's operating point
     params.vxSim    = o.vxSim;                              % m/s, plant's actual speed
     params.xLin = [0; 0; 0; params.vxDesign; 0; 0];     % LTI operating point (state)
     params.uLin = [0; 0];                               % LTI operating point (input)
@@ -29,7 +30,8 @@ function params = paramDefs(o)
     params.t          = (0:params.numSamples-1)' * params.Ts;
 % Design constraints
     params.Jlong        = 2.0;    % m/s^3, longitudinal jerk limit
-    params.ay_max       = 0.98;   % m/s^2, lateral acceleration comfort limit
+    % params.ay_max       = 0.98;   % m/s^2, lateral acceleration comfort limit
+    params.ay_max       = 0.4;   % m/s^2, lateral acceleration comfort limit
     params.T            = 8;      % s, lane-change duration
     params.Jlat_comfort = 1.0;    % m/s^3, fixed comfort limit: plots and reporting only
     params.Jlat_design  = 0.6;    % m/s^3, steering-rate proxy: tuning knob for dd only

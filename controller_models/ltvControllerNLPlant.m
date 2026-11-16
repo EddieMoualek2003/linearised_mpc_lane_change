@@ -1,6 +1,6 @@
 function [Ylog, Xlog, Ulog, AYlog, QPflag, run] = ltvControllerNLPlant(params)
 %% Define the system functions and 
-fprintf("Test:\t vxDesign: %f \n\t vxSim: %f \n", params.vxDesign, params.vxSim);
+% fprintf("Test:\t vxDesign: %f \n\t vxSim: %f \n", params.vxDesign, params.vxSim);
 [s_sym, s_fun] = systemDefinition(params);
 mpcverbosity('off');
 
@@ -31,6 +31,7 @@ mpcobj.Model.Nominal = nom0;
 mpcobj.Weights.OutputVariables          = [0, 10, 2, 2, 0, 0];   % [X, Y, psi, vx, vy, omega]
 mpcobj.Weights.ManipulatedVariables     = [0, 0];                % [ax, delta]
 mpcobj.Weights.ManipulatedVariablesRate = [2, 100];
+
 % Longitudinal: acceleration and jerk
 mpcobj.MV(1).Min     = -0.8;
 mpcobj.MV(1).Max     =  0.8;
@@ -64,12 +65,14 @@ uAbs = params.u0;                         % holds u_{k-1} at the top of each ite
 Ylog = zeros(N, 6);  Xlog = zeros(N, 6);  Ulog = zeros(N, 2);
 AYlog = zeros(N, 1); QPflag = zeros(N, 1);
 SLlog = zeros(N, 1); Jlog = zeros(N, 1);
+tStep = zeros(params.numSamples, 1);
+
 for k = 1:N
     yAbs = s_fun.gF(xAbs, uAbs);          % y_k = g(x_k, u_{k-1})
     xHat = xAbs;                          % x̂_k: identity sensor, no noise
     xmpc.Plant = xHat;
     yRef = ref(k+1:k+params.Np, :);
-
+    t0 = tic;
     % Linearise at (x̂_k, u_{k-1})
     Ac = s_fun.AcF(xHat, uAbs);   Bc = s_fun.BcF(xHat, uAbs);
     f0 = s_fun.fF(xHat, uAbs);
@@ -88,6 +91,8 @@ for k = 1:N
         'S', zeros(2, 0));                % no measured disturbances
 
     [uAbs, info] = mpcmoveAdaptive(mpcobj, xmpc, plant_k, nom_k, yAbs(1:4), yRef, [], opt);
+    % [uAbsTemp, info] = mpcmoveAdaptive(mpcobj, xmpc, plant_k, nom_k, yAbs(1:4), yRef, [], opt);
+    tStep(k) = toc(t0);
 
     % Plant step (same model, ode45, mv held over Ts)
     [xNext, ay] = nonlinearPlantStep(xAbs, uAbs, s_fun, params);
@@ -96,12 +101,14 @@ for k = 1:N
     AYlog(k) = ay;       QPflag(k) = info.Iterations;
     xAbs = xNext;
     SLlog(k) = info.Slack;   Jlog(k) = info.Cost;
+    % uAbs = uAbsTemp;
 end
 
 key = matlab.lang.makeValidName(sprintf('d%g_s%g', params.vxDesign, params.vxSim));
 run = struct('key', key, 't', (0:N-1).' * params.Ts, ...
     'Y', Ylog, 'X', Xlog, 'U', Ulog, 'AY', AYlog, ...
     'QP', QPflag, 'Slack', SLlog, 'Cost', Jlog, ...
+    'StepTime', tStep, ...
     'Ref', ref(1:N, :), 'params', params);
 
 

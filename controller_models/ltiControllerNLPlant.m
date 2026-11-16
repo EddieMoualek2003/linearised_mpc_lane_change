@@ -1,6 +1,6 @@
 function [Ylog, Xlog, Ulog, AYlog, QPflag, run] = ltiControllerNLPlant(params)
 %% System
-fprintf("Test:\t vxDesign: %f \n\t vxSim: %f \n", params.vxDesign, params.vxSim);
+% fprintf("Test:\t vxDesign: %f \n\t vxSim: %f \n", params.vxDesign, params.vxSim);
 [~, s_fun] = systemDefinition(params);
 
 %% Linearise once at the operating point (vxDesign)
@@ -41,6 +41,7 @@ mpcobj.MV(2).Max     =  0.5;
 mpcobj.MV(2).RateMin = -dd;
 mpcobj.MV(2).RateMax =  dd;
 % Lateral acceleration (soft): a_y = c_vy*vy + c_w*omega + c_d*delta, frozen at xLin
+
 c = s_fun.ayCoeffF(xLin, uLin);           % [c_vy, c_w, c_d]
 E = [0,  c(3); 0, -c(3)];
 F = [0 0 0 0  c(1)  c(2);
@@ -61,13 +62,15 @@ uAbs = params.u0;                         % holds u_{k-1} at the top of each ite
 Ylog  = zeros(N, 6);  Xlog   = zeros(N, 6);  Ulog = zeros(N, 2);
 AYlog = zeros(N, 1);  QPflag = zeros(N, 1);
 SLlog = zeros(N, 1);  Jlog   = zeros(N, 1);
+tStep = zeros(N, 1);                 % with the other preallocations
 for k = 1:N
     yAbs = s_fun.gF(xAbs, uAbs);          % y_k = g(x_k, u_{k-1})
     xmpc.Plant = xAbs;
     yRef = ref(k+1:k+params.Np, :);
-
+    t0 = tic;
     [uAbs, info] = mpcmove(mpcobj, xmpc, yAbs(1:4), yRef);
-
+    % [uAbsTemp, info] = mpcmove(mpcobj, xmpc, yAbs(1:4), yRef);
+    tStep(k) = toc(t0);
     % Plant step (same model, ode45, mv held over Ts)
     [xNext, ay] = nonlinearPlantStep(xAbs, uAbs, s_fun, params);
 
@@ -75,11 +78,13 @@ for k = 1:N
     AYlog(k)  = ay;      QPflag(k) = info.Iterations;
     SLlog(k)  = info.Slack;  Jlog(k) = info.Cost;
     xAbs = xNext;
+    % uAbs = uAbsTemp;
 end
 
 key = matlab.lang.makeValidName(sprintf('d%g_s%g', params.vxDesign, params.vxSim));
 run = struct('key', key, 't', (0:N-1).' * params.Ts, ...
     'Y', Ylog, 'X', Xlog, 'U', Ulog, 'AY', AYlog, ...
     'QP', QPflag, 'Slack', SLlog, 'Cost', Jlog, ...
+    'StepTime', tStep, ...
     'Ref', ref(1:N, :), 'params', params);
 end

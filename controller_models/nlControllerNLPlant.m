@@ -2,10 +2,10 @@ clc; clear; close all;
 fprintf("Lane Change Model Predictive Control \n")
 fprintf("\t - Non-linear plant\n")
 fprintf("\t - Non-linear controller\n")
-addpath("controller_models/", "functions/", "plant_models/", "simulation_frameworks/", "ayConstraints/");
+addpath("controller_models/", "functions/");
 
 %% Parameters and system
-params = paramDefs();
+params = paramDefs("vxSim",5);
 [s_sym, s_fun] = systemDefinition(params);   % single source of f, g, a_y and Jacobians
 
 nx = numel(params.x0);

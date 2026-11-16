@@ -18,8 +18,15 @@ function [s_sym, s_fun] = systemDefinition(params)
     ay_sym = (Fyf + Fyr) / m;
 % State derivative f(x, u)
     f_sym = sym(zeros(6, 1));
+
     f_sym(1) = vx * cos(psi_angle) - vy * sin(psi_angle);   % d(px)/dt
     f_sym(2) = vx * sin(psi_angle) + vy * cos(psi_angle);   % d(py)/dt
+    
+    % Small angle approximation
+    % f_sym(1) = vx - vy * psi_angle;          % cos(psi) -> 1, sin(psi) -> psi
+    % f_sym(2) = vx * psi_angle + vy;
+
+    
     f_sym(3) = omega;                                       % d(psi)/dt
     f_sym(4) = ax + vy * omega;                             % d(vx)/dt
     f_sym(5) = ay_sym - vx * omega;                         % d(vy)/dt = a_y - vx*omega
